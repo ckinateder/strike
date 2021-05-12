@@ -112,7 +112,7 @@ class Bowl:
         self,
         series=pd.Series,
         window_range=np.arange(5, 23, 2),
-        sigma_range=np.arange(1.6, 2, 0.02),
+        sigma_range=np.arange(1.65, 2, 0.01),
         loud=True,
     ):
         """
@@ -152,17 +152,7 @@ class Bowl:
         window_range=np.arange(5, 23, 2),
         sigma_range=np.arange(1.6, 2, 0.02),
     ):
-        result = minimize(
-            self.backtest,
-            x0=[5, 1.6],
-            args=(series,),
-        )
-
-        if result.success:
-            fitted_params = result.x
-            print(fitted_params)
-        else:
-            raise ValueError(result.message)
+        pass
 
     def plot(self, data: pd.DataFrame):
         # declare figure
