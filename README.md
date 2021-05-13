@@ -28,4 +28,8 @@ bowler.optimize(df["close"])
 bowler.backtest(df["close"], loud=True)
 ```
 
-`optimize` grid-searches the parameters for the best combination. This sets the controlling values for the best result. Then, it calls `backtest` to test on the previous data. 
+`optimize` grid-searches the parameters for the best combination. This sets the controlling values for the best result. Then, it calls `backtest` to test on the previous data.
+
+## Live
+
+To try to run it live, run `app.py`.

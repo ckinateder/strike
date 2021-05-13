@@ -5,6 +5,11 @@ from tqdm import trange
 # Data viz
 import plotly.graph_objs as go
 from scipy.optimize import minimize
+import logging, os
+
+logger = logging.getLogger(__name__)
+
+os.environ["NUMEXPR_MAX_THREADS"] = "8"  # otherwise gives error
 
 
 class Bowl:
@@ -39,7 +44,9 @@ class Bowl:
         elif now[series.name] > now.upper and last[series.name] < last.upper:
             signal = "sell"
         if loud:
-            print(f"Bowl: SIGNAL={signal} (window={self.window}, sigma={self.sigma})")
+            logger.info(
+                f"Bowl: SIGNAL={signal} (window={self.window}, sigma={self.sigma})"
+            )
         return signal
 
     def backtest(
@@ -103,7 +110,7 @@ class Bowl:
         buyandhold = ((final_price - starting_price) / starting_price) * 100
         num_trades = tested[tested["signal"] != "hold"].shape[0]
         if loud:
-            print(
+            logger.info(
                 f"Net: {tested.iloc[-1]['net']*100:.2f}% (window={window}, sigma={sigma}) (b&h: {buyandhold:.2f}%) (# of trades: {num_trades})"
             )
         return tested
@@ -121,7 +128,7 @@ class Bowl:
         already_done = []
         best = -1e10
         bestparams = (-1, -1)
-        print("Optimizing....")
+        logger.info("Optimizing....")
         for i in window_range:
             for j in sigma_range:
                 if i != j and (i, j) not in already_done:
@@ -138,13 +145,13 @@ class Bowl:
                         best = tested.iloc[-1]["net"]
                         bestparams = (i, j)
                         if loud:
-                            print(
+                            logger.info(
                                 f"best: {best*100:.2f}%, best params: {bestparams} (b&h: {buyandhold:.2f}%)"
                             )
                     already_done.append((i, j))
         self.window = bestparams[0]
         self.sigma = bestparams[1]
-        print(f"--\nbest: {best*100:.2f}%, best params: {bestparams}")
+        logger.info(f"--\nbest: {best*100:.2f}%, best params: {bestparams}")
 
     def scipy_opt(
         self,

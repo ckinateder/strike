@@ -10,7 +10,8 @@ import random
 from bowl import Bowl
 import logging
 
-logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Data viz
 import plotly.graph_objs as go
 
@@ -56,14 +57,22 @@ class Alpaca:
         -------
         df : pd.DataFrame
         """
-        df = self.api.get_bars(
-            ticker,
-            TimeFrame.Minute,
-            (datetime.now() - how_far_back).strftime(DTFORMAT),
-            datetime.now().strftime(DTFORMAT),
-            adjustment="raw",
-        ).df
-        return df
+        start = (datetime.now() - how_far_back).strftime(DTFORMAT)
+        end = datetime.now().strftime(DTFORMAT)
+        try:
+            df = self.api.get_bars(
+                ticker,
+                timeframe,
+                start,
+                end,
+                adjustment="raw",
+            ).df
+            return df
+        except Exception as e:
+            logger.warning(
+                f"Couldn't get bars for {ticker} from {start} to {end} with freq {timeframe} ({e})"
+            )
+            return pd.DataFrame()
 
     def submit_limit_order(self, ticker, side, price, qty=1, time_in_force="day"):
         """Submit a limit order
@@ -83,17 +92,26 @@ class Alpaca:
 
         Returns
         -------
-        True
+        True if completed
         """
-        self.api.submit_order(
-            symbol=ticker,
-            qty=qty,  # fractional shares
-            side=side,
-            type="limit",
-            limit_price=price,
-            time_in_force=time_in_force,
-        )
-        return True
+        try:
+            self.api.submit_order(
+                symbol=ticker,
+                qty=qty,  # fractional shares
+                side=side,
+                type="limit",
+                limit_price=price,
+                time_in_force=time_in_force,
+            )
+            logger.info(
+                f"Submitted limit {side} order for {qty} {ticker} @ ${price} (TIF={time_in_force})"
+            )
+            return True
+        except Exception as e:
+            logger.warning(
+                f"Couldn't submit limit {side} order for {qty} {ticker} @ ${price} ({e})"
+            )
+            return False
 
     def submit_market_order(self, ticker, side, qty=1, time_in_force="day"):
         """Submit a market order
@@ -113,38 +131,63 @@ class Alpaca:
         -------
         True
         """
-        self.api.submit_order(
-            symbol=ticker,
-            qty=qty,  # fractional shares
-            side=side,
-            type="market",
-            time_in_force=time_in_force,
-        )
-        return True
+        try:
+            self.api.submit_order(
+                symbol=ticker,
+                qty=qty,  # fractional shares
+                side=side,
+                type="market",
+                time_in_force=time_in_force,
+            )
+            return True
+        except Exception as e:
+            logger.warning(
+                f"Couldn't submit market {side} order for {qty} {ticker} ({e})"
+            )
+            return False
 
     def get_account(self):
         """
         Get account info
         """
-        return self.api.get_account()
+        try:
+            return self.api.get_account()
+        except Exception as e:
+            logger.warning(f"Couldn't get account info ({e})")
+            return {}
 
     def any_open_orders(self) -> bool:
         """
         Returns true if any open orders
         """
-        resp = self.api.list_orders(status="open")
-        return len(resp) > 0
+        try:
+            resp = self.api.list_orders(status="open")
+            return len(resp) > 0
+        except Exception as e:
+            logger.warning(f"Couldn't get open orders ({e})")
+            return True  # better safe than sorry
 
     def get_position(self, ticker):
         """Gets the position for a ticker"""
-        return self.api.get_position(ticker)
+        try:
+            return self.api.get_position(ticker)
+        except Exception as e:
+            logger.warning(f"Couldn't get position for {ticker} ({e})")
+            return {}
 
     def get_shares(self, ticker):
         """Returns the share count that you possess for a ticker"""
         try:
             return self.api.get_position(ticker)["qty"]
+        except Exception as e:  # effectively 0 then
+            return 0
+
+    def get_buying_power(self):
+        """Returns the buying_power you have"""
+        try:
+            return self.api.get_account().buying_power
         except Exception as e:
-            logging.warning(f"Issue getting position for {ticker} (e)")
+            logging.warning(f"Issue getting buying_power ({e})")
             return 0
 
 
